@@ -17,3 +17,7 @@
 # ドキュメント - Detail Description
 
 ドキュメントはこちら
+
+# クレジット - Credits / Acknowledgement
+
+under construction
