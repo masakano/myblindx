@@ -18,6 +18,6 @@
 
 ドキュメントはこちら
 
-# クレジット - Credits / Acknowledgement
+# クレジット - Credits
 
 under construction
