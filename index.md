@@ -1,19 +1,19 @@
 # BlindX
 
-# 概要 - Excecutive Summery
+<p align="center">
+    <img src="./screenshots/title0.jpg" width="640">
+</p>
 
-サマリはこちら
+<p align="center">
+   <video src="./screenshots/scompare1.mp4" controls="true" width="640"></video>
+</p>
 
-# デモ - Demonstration Programs
+<p align="center">
+   <video src="./screenshots/schat1.mp4" controls="true" width="480"></video>
+</p>
 
-現在テスト中のプログラムはこちら。不定期に変更されます。
+<p align="center">
+   <video src="./screenshots/report4.mp4" controls="true" width="640"></video>
+</p>
 
-[capricious demo](https://finer-charmed-dassie.ngrok-free.app)
 
-# コード - Source codes
-
-コードはこちら
-
-# ドキュメント - Detail Description
-
-ドキュメントはこちら
