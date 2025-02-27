@@ -20,7 +20,7 @@ BlindX サーバの自体は単純な websocket による非同期 echo サー�
 対応するかな漢字文が返信されます。
 
 
-```python python 
+```python
 import asyncio
 while self.websocket:
     try:            
