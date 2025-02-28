@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>概要 | myblindx</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="概要" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="experimental blindx documentations" />
+<meta property="og:description" content="experimental blindx documentations" />
+<link rel="canonical" href="http://localhost:4000/" />
+<meta property="og:url" content="http://localhost:4000/" />
+<meta property="og:site_name" content="myblindx" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="概要" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","description":"experimental blindx documentations","headline":"概要","name":"myblindx","url":"http://localhost:4000/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link rel="preload" href="https://fonts.googleapis.com/css?family=Open+Sans:400,700&display=swap" as="style" type="text/css" crossorigin>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#157878">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="stylesheet" href="/assets/css/style.css?v=1af143e0c70393aa6a99b007c9ff0ab5ed9a614a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <a id="skip-to-content" href="#content">Skip to the content.</a>
+
+    <header class="page-header" role="banner">
+      <h1 class="project-name">概要</h1>
+      <h2 class="project-tagline">experimental blindx documentations</h2>
+      
+        <a href="https://github.com/masakano/myblindx" class="btn">View on GitHub</a>
+      
+      
+    </header>
+
+    <main id="content" class="main-content" role="main">
+      <h1 id="概要">概要</h1>
+
+<p align="center">
+    <img src="./screenshots/title0.jpg" width="640" />
+</p>
+
+<h1 id="日本語変換コア">日本語変換コア</h1>
+
+<p>BlindX は Transformer T5 (Text-to-Text Transfer Transformer) をベースにした推論機能を用いたな日本語処理
+フロントエンドです。AI機能のもつ柔軟な日本語生成機能をもちながら、人間との最初のインターフェースとして素早く快適な応答を実現します。推論は GPU を使用した専用のサーバを介して行われます。
+その結果を用いて日本語入力に対して障壁の低いエッジクライアントを構築できることを目指します。</p>
+
+<p>ここでは大きな処理の流れを説明します。コードの詳細はリポジトリをご参照ください。</p>
+
+<h1 id="サーバとの通信">サーバとの通信</h1>
+
+<p>BlindX サーバの自体は単純な websocket による非同期 echo サーバです。
+基本的な通信ではクライアントがひらがな文を送信すると対応するかな漢字文が返信されます。</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">asyncio</span>
+<span class="k">while</span> <span class="bp">self</span><span class="p">.</span><span class="n">websocket</span><span class="p">:</span>
+    <span class="k">try</span><span class="p">:</span>            
+        <span class="k">if</span> <span class="n">text</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="p">.</span><span class="n">websocket</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="n">dict_type</span> <span class="o">+</span> <span class="n">text</span><span class="p">)</span>
+            <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="p">.</span><span class="n">websocket</span><span class="p">.</span><span class="n">recv</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">''</span>
+    <span class="k">except</span> <span class="n">websockets</span><span class="p">.</span><span class="n">ConnectionClosed</span><span class="p">:</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="p">.</span><span class="n">websocket</span><span class="p">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">websocket</span> <span class="o">=</span> <span class="k">await</span> <span class="n">websockets</span><span class="p">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">uri</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>サーバでの変換はスレッドごとにひとつの send() に対して対応するひとつの recv() で完結し、ステートレスで行われます。
+すなわちサーバ側はクライアントの過去の状態は保持しません。</p>
+
+<p>変換に際して、辞書の指定や前後の文脈などのコンテクストは、その都度再送信されます。</p>
+
+<h1 id="辞書の選択">辞書の選択</h1>
+
+<p>変換にあたっては異なるコーパス（語彙のデータベース）から学習させた複数の辞書から適切なものが選択されます。</p>
+
+<p>辞書の一例として以下のものがあります。</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>辞書名</th>
+      <th>下敷きとしたコーパス</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>aozora256</td>
+      <td>青空文庫コーパス</td>
+    </tr>
+    <tr>
+      <td>wiki256</td>
+      <td>wikipedia コーパス</td>
+    </tr>
+    <tr>
+      <td>2ch256</td>
+      <td>おーぷん２ちゃんねる対話コーパス</td>
+    </tr>
+    <tr>
+      <td>cc256</td>
+      <td>CC-100 コーパス</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>これらの辞書は個人ごとではなく、それぞれの対象領域の語彙集合が時代とともに推移していくの合わせに更新されます。</p>
+
+<p>辞書の選択は多くの場合アプリケーションの特性に応じて選ばれ、最終ユーザが意識することはありません。</p>
+
+<h1 id="変換の実際">変換の実際</h1>
+
+<h2 id="プリプロセッサ">プリプロセッサ</h2>
+
+<p>Blindx は本体は、字句解析前の日本語ひらがなを入力とします。
+しかしユーザから見るとひらがな入力自身が直接のインターフェースでありません。
+例えばデスクトップではキーボードによるローマ字入力、モバイルではフリック入力、あるいは音声・ジェスチャなど、
+ファーストコンタクト入力手段は、このようにモーダル（使用形態）によって異なることから、
+BlindX ではモーダルごとに別個にプリプロセッサが置かれます。</p>
+
+<pre>
+
++-------------+  +------------------+
+| Flick Input +--+ Error correction + ------------------------+
++-------------+  +------------------+                         |
+                                                              |
++-------------+  +------------------+ +--------------------+  |
+| keyboard    +--+ Error correction +-+ romaji-to-hiragana +--+-- Hiragana - BlindX
++-------------+  +------------------+ +--------------------+  | 
+                                                              |
++-------------+  +-----------------+ +------------------+     |
+| Audio input +--+ speech-to-text  +-* error correction +-----+
++-------------+  +-----------------+ +------------------+
+
+</pre>
+
+<p>デスクトップアプリではキーボードのローマ字入力をひらがな文字列に変換する部分がこれにあたります。
+加えて、必要に応じてその前後にそのモーダル特有でおこりがちな誤入力を修正するフィルタが挿入されます。</p>
+
+<blockquote>
+  <p>blindX のローマ字変換
+blindX のデフォルトのローマ字ひらがなパーサはいくつか拡張がされています。
+いくつかは既存の IME との相互運用を容易にするためのものです。</p>
+  <ul>
+    <li>半角英数字も一旦全角英数字に変換されます
+      <ul>
+        <li><strong>2025ねん1がつ１にち</strong> → <strong>２０２５ねん１がつ１にち</strong></li>
+      </ul>
+    </li>
+    <li>はじめからかな漢字のものはひらがなのまま出力されます
+      <ul>
+        <li><strong>ashitanotenkiは晴れdatoomou</strong> -&gt; <strong>あしたのてんきは晴れだとおもう</strong></li>
+      </ul>
+    </li>
+    <li>バッククォートされた範囲は半角ローマ字のまま出力されます。
+      <ul>
+        <li><strong>`Hey Jude` habi-toruzunogakkyokudesu</strong> -&gt; <strong>Hey Jude はびーとるずのがっきょくです</strong></li>
+      </ul>
+    </li>
+  </ul>
+</blockquote>
+
+<h2 id="ライブ変換">ライブ変換</h2>
+
+<p>変換は最短で１文字入力されるたびに即座に要求が発行されます。
+この間隔は調整できます。</p>
+
+<p>実際に変換が行われるかどうかは、ユーザのキーボードの入力速度およびその時点でのサーバのレイテンシによって判断されます。
+キーボードの入力が十分遅い場合は</p>
+
+<p>「あしたのてんきははれだとおもう」の場合</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>入力</th>
+      <th>変換</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>あ</td>
+      <td>あ</td>
+    </tr>
+    <tr>
+      <td>あし</td>
+      <td>足</td>
+    </tr>
+    <tr>
+      <td>あした</td>
+      <td>明日</td>
+    </tr>
+    <tr>
+      <td>あしたの</td>
+      <td>あしたの</td>
+    </tr>
+    <tr>
+      <td>あしたのて</td>
+      <td>明日のて</td>
+    </tr>
+    <tr>
+      <td> </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td>あしたのてんきははれだとおもう</td>
+      <td>明日の天気は晴れだと思う</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>実際のサーバへの変換要求の送信は以前の変換の返答が完了するまでペンディングされます。
+それまでは入力されたひらがなが、最後に変換されたかな漢字文の末尾にそのまま追加されます。
+そして、次の変換が確定した時点で、文字列は最新のかな漢字に変更されます。</p>
+
+<p>この段階では変換は応答性を優先して、狭いウィンドウでの変換が行われます。より正確な変換は長いウィンドウで再度実行されます。
+つまり変換は文脈のウィンドウをかえて複数回実行されることになります。</p>
+
+<h2 id="文章の訂正と校正">文章の訂正と校正</h2>
+
+<p>一旦確定した文章の修正には打ち間違いによる誤変換などの小規模なものと、より広い文脈を見た上でのものがあり、ここでは
+前者を訂正、後者を校正と呼びます。</p>
+
+<h3 id="訂正">訂正</h3>
+
+<p>軽微な訂正は BlindX ができるだけ自動的に訂正することを試みます。
+この場合はユーザは訂正があったこと自体を意識しません。</p>
+
+<p>それでも失敗した修正は、通常の日本語変換と同じく、特定の部分のの候補を選択し、再推定します。
+つまり推論器は対応する形態素の推定結果を、与えらた語句に固定し、再度推論を試みます。
+このため、場合によっては一箇所を修正するとその周辺も適切に自動的に変更されます。</p>
+
+<h3 id="校正">校正</h3>
+
+<p>より広い校正は、すでに一旦かな漢字が確定した以前の内容まで遡って再度翻訳単位に含めることで行われます。
+推論器は前後の文章を反映して入力精度を向上を図ります。
+これは会話文の羅列のような短い断片的な文が続くケースでは有効に作用します。</p>
+
+<p>校正処理は入力の明確な区切りである句点や改行の時点で実行されます。
+以下に例を示します。（ただし、説明のため極端に短い間隔で改行しています）</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>入力行</th>
+      <th>変換に参照されるウィンドウ</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>しかもあとできくと</td>
+      <td>しかもあとできくと</td>
+    </tr>
+    <tr>
+      <td>しょせいという</td>
+      <td>しかもあとできくと + しょせいという</td>
+    </tr>
+    <tr>
+      <td>よのなかでもっとも</td>
+      <td>しかもあとできくと + しょせいという + よのなかでもっとも</td>
+    </tr>
+    <tr>
+      <td>どうあくないきものだそうだ</td>
+      <td>しかもあとできくと + しょせいという + よのなかでもっとも + どうあくないきものだそうだ</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>実際の日本語変換は、この間に低レイテンシの短いウィンドウでの変換が間に挟まれます。
+したがって上記の例では最小で以下の順番で変換されます。</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>入力</th>
+      <th>その時点で確定した文</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>しかもあとできくと</td>
+      <td>しかも後で聞くと</td>
+    </tr>
+    <tr>
+      <td>しょせいという</td>
+      <td>処世という</td>
+    </tr>
+    <tr>
+      <td>しかもあとできくとしょせいという</td>
+      <td>書生という</td>
+    </tr>
+    <tr>
+      <td>よのなかでもっとも</td>
+      <td>世の中で最も</td>
+    </tr>
+    <tr>
+      <td>しかもあとできくとしょせいというよのなかでもっとも</td>
+      <td>世の中で最も</td>
+    </tr>
+    <tr>
+      <td>どうあくないきものだそうだ</td>
+      <td>どうあくな生き物だそうだ</td>
+    </tr>
+    <tr>
+      <td>しかもあとできくとしょせいというよのなかでもっともどうあくないきものだそうだ</td>
+      <td>獰悪ないきものだそうだ</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>最後の変換結果は遡ってそれ以前の結果にも反映されることもあります。
+ただし、実際は参照するウィンドウ自体も入力が進むにあわせてスライドします。
+そのため、どの段の候補が採用されるかはその位置によって異なります。</p>
+
+<h3 id="広範囲な校正オプション">広範囲な校正（オプション）</h3>
+
+<p>グループウェアやチャットのように複数の書き手がひとつの流れの文章を共同で構成していくケースでは
+全員分のコンテキストを保持しておいて、広範な範囲で blindx のサーバで変換・編集をかけることが可能です。
+各メッセージを時系列でマージして長いチャンクとして変換をかけることでより文脈に即した変換が期待できます。</p>
+
+<h1 id="ショーケースとベストプラクティス">ショーケースとベストプラクティス</h1>
+
+<p>ここで上げた機能を実装した MIT ライセンスによるショーケースのコードが github にありますのでご参照ください。
+ここでのコードにはいくつかの制限事項があります。</p>
+
+<h2 id="blindx-の使用形態">BlindX の使用形態</h2>
+
+<p>BlindX の想定されるユースケースには</p>
+<ul>
+  <li>BlindX FEP (Front End Processor) 経由するもの</li>
+  <li>スタンドアロンアプリ</li>
+  <li>web アプリ</li>
+</ul>
+
+<p>が考えられますが、ショーケースではサーバサイドアプリケーションを前提としています。
+スダンドアローンアプリとして実行する場合は若干の変更が必要になります。詳細はレポジトリを参照ください
+※BlindX FEP については将来別途リリース予定です。</p>
+
+<h3 id="fep-を経由する場合">FEP を経由する場合</h3>
+<p>通常の IME と同じになります。ユーザの入力コンテクストやログはローカルの FEP の中のみで閉じて蓄積され最終的に変換された
+日本語だけがアプリケーションに渡されます。あるいは BlinX の通信のみを使って独自の FEP をサービスごとに実行する方法も
+あります。</p>
+
+<h3 id="web-app">Web App</h3>
+<p>Web アプリでは動的な UI で WSGI/ASGI など非同期な Web サーバが一般的に使われます。
+この場合は、BlindX は実際には Web サーバと BlidX サーバの間で行なうことが考えられます。</p>
+
+<h3 id="スタンドアロンアプリ">スタンドアロンアプリ</h3>
+<p>スタンドアロンのアプリの場合、BlindX サーバとの通信は認証が完了したのちクライアントとの直接通信になります。
+また異なるクライアントからの入力を文脈に含めるため、共有機構が別途必要なります。</p>
+
+<h2 id="入力の反映方法">入力の反映方法</h2>
+
+<p>ユーザの入力の反映には</p>
+<ul>
+  <li>一旦フレームワークで用意されたテキストボックスういジェットにエコーされた文字列をフックして内容を動的に書き換える方法と、</li>
+  <li>低レベルのキーボード入力やマイク入力を捕獲する方法</li>
+</ul>
+
+<p>があります。ショーケースでは２つの方法のいずれかが実装されています。</p>
+
+<h2 id="スレッドと-asyncio">スレッドと asyncio</h2>
+
+<p>blindx websocket 通信を  UI のバックグラウンドで行うのには asyncio とスレッドのいずれを使うこともできます。
+可能な環境であれば asyncio ではなくスレッドを使うほうがサーバのコストを少なく素早い反応が期待できます。
+変換処理自体は非常に軽量なためマシンあたり多くのリクエストを管理できます。そこで入力頻度が低い場合などで
+入力が中断しているセッションは一旦接続を解除し、より多くの同時接続を試みることができます。この場合には
+UI と同じイベントループで send()/recv() を行うよりは別スレッドのほうが有利となります。</p>
+
+<h2 id="ショーケースで使用している-ui-フレームワーク">ショーケースで使用している UI フレームワーク</h2>
+
+<p>ショーケースの UIフレームワークでは flet を使用しています。</p>
+
+<p><a href="https://flet.dev/">Flet</a></p>
+
+<p>BlindX に関わる部分は分離されています。</p>
+
+<h2 id="compare">Compare</h2>
+
+<p>実際の日本語変換機能の基本テストを行います。
+参考までに mozcpy を用いた変換結果も同時に表示します。</p>
+
+<p><a href="https://github.com/ikegami-yukino/mozcpy">mozcpy</a></p>
+
+<p align="center">
+   <video src="./screenshots/scompare2.mp4" controls="true" width="640"></video>
+</p>
+
+<p>ソースコードはこちら</p>
+
+<h2 id="real-time-chat">Real-time Chat</h2>
+
+<p>非同期なリアルタイムチャット</p>
+
+<p>共有された広い範囲の文脈を使ったメッセージングアプリの例です。
+日本語変換のリアルタイム性とあいまって、より音声会話に近い感覚でテキスト会話が可能になります。</p>
+
+<p align="center">
+   <video src="./screenshots/schat2.mp4" controls="true" width="480"></video>
+</p>
+
+<p>ソースコードはこちら</p>
+
+<h2 id="on-line-edit">On-line Edit</h2>
+
+<p>パラグラフにまたがった広範囲の日本語変換をおこなったテキストエディタです。
+またより低レベルのキーボード入力をハンドルしている例にもなっています。
+最初のキーバインドは linux でのデフォルトの readline/emacs のキーバインドに沿っています。</p>
+
+<p align="center">
+   <video src="./screenshots/report4.mp4" controls="true" width="640"></video>
+</p>
+
+<p>コードはこちら</p>
+
+
+
+      <footer class="site-footer">
+        
+          <span class="site-footer-owner"><a href="https://github.com/masakano/myblindx">myblindx</a> is maintained by <a href="https://github.com/masakano">masakano</a>.</span>
+        
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a>.</span>
+      </footer>
+    </main>
+  </body>
+</html>

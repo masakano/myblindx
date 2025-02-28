@@ -1,5 +1,8 @@
-*~
-_site
-Gemfile.lock
-
-
+__pycache__
+.venv
+.pytest_cache
+.ruff_cache
+models
+assets
+work
+log
