@@ -1,7 +1,9 @@
 __pycache__
+_site
 .venv
 .pytest_cache
 .ruff_cache
+Gemfile
 models
 assets
 work
