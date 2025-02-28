@@ -1,10 +1,8 @@
-# 概要
+# BlindX
 
 <p align="center">
     <img src="./screenshots/title0.jpg" width="640">
 </p>
-
-# 日本語変換コア
 
 BlindX は Transformer T5 (Text-to-Text Transfer Transformer) をベースにした推論機能を用いたな日本語処理
 フロントエンドです。AI機能のもつ柔軟な日本語生成機能をもちながら、人間との最初のインターフェースとして素早く快適な応答を実現します。推論は GPU を使用した専用のサーバを介して行われます。
@@ -237,7 +235,7 @@ BlindX に関わる部分は分離されています。
    <video src="./screenshots/scompare2.mp4" controls="true" width="640"></video>
 </p>
 
-[ソースコードはこちら](./demo_25.01/apps/app0/README.md)
+詳細とソースコードは github を参照ください
 
 ## Real-time Chat
 
@@ -250,7 +248,7 @@ BlindX に関わる部分は分離されています。
    <video src="./screenshots/schat2.mp4" controls="true" width="480"></video>
 </p>
 
-[ソースコードはこちら](./demo_25.01/apps/app1/README.md)
+詳細とソースコードは github を参照ください
 
 ## On-line Edit
 
@@ -262,7 +260,7 @@ BlindX に関わる部分は分離されています。
    <video src="./screenshots/report4.mp4" controls="true" width="640"></video>
 </p>
 
-[ソースコードはこちら](./demo_25.01/apps/app2/README.md)
+詳細とソースコードは github を参照ください
 
 ## この記事について
 
