@@ -5,6 +5,6 @@ _site
 .ruff_cache
 Gemfile
 models
-assets
+assets/ipadic-mecab-2_7_0
 work
 log

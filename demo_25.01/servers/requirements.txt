@@ -1,6 +1,0 @@
-websockets
-accelerate
-transformers
-sentencepiece
-datasets
-scipy
